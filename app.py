@@ -8,17 +8,17 @@ from transformers import pipeline
 load_dotenv()
 
 # Retrieve API key from environment variables
-HF_API_KEY = os.getenv('HF_API_KEY')
+HF_API_KEY = os.getenv('HF_API_KEY2')
 
 # Image Generation Function
 def generate_image(prompt):
-    """Generate image using Stable Diffusion via Hugging Face API."""
-    api_url = "https://api-inference.huggingface.co/models/runwayml/stable-diffusion-v1-5"
+    """Generate image using Stable Diffusion 3.5-large via Hugging Face API."""
+    api_url = "https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-3.5-large"
     headers = {"Authorization": f"Bearer {HF_API_KEY}"}
     payload = {"inputs": prompt}
     
     try:
-        response = requests.post(api_url, headers=headers, json=payload, timeout=30)
+        response = requests.post(api_url, headers=headers, json=payload, timeout=60)
         if response.status_code == 200:
             image_path = "generated_image.png"
             with open(image_path, "wb") as f:
@@ -45,19 +45,25 @@ def load_local_chat_model():
         return None
 
 def generate_chat_response(prompt):
-    """Generate response using Flan-T5 API, fall back to local DistilGPT-2."""
-    # Try Hugging Face API first
-    api_url = "https://api-inference.huggingface.co/models/google/flan-t5-base"
-    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+    """Generate response using Llama 3.1 API, fall back to local DistilGPT-2."""
+    # Try Hugging Face Router API first
+    api_url = "https://router.huggingface.co/featherless-ai/v1/completions"
+    headers = {
+        "Authorization": f"Bearer {HF_API_KEY}",
+        "Content-Type": "application/json"
+    }
     payload = {
-        "inputs": prompt,
-        "parameters": {"max_length": 100, "temperature": 0.7}
+        "model": "meta-llama/Meta-Llama-3.1-8B",
+        "prompt": prompt
     }
     
     try:
         response = requests.post(api_url, headers=headers, json=payload, timeout=30)
         if response.status_code == 200:
-            return response.json()[0]["generated_text"]
+            result = response.json()
+            if "choices" in result and len(result["choices"]) > 0:
+                return result["choices"][0]["text"]
+            return "No response generated"
         else:
             st.error(f"Chat API error: {response.status_code} - {response.text[:100]}...")
     except requests.exceptions.RequestException as e:
